@@ -49,6 +49,78 @@ class ChatService {
     }
   }
 
+  // Get aggregated offer stats for a car
+  async getOfferStatsForCar(carId) {
+    try {
+      const statsQuery = `
+        SELECT 
+          COUNT(DISTINCT buyer_id)::int AS active_buyers,
+          COALESCE(MAX(price), 0)::int AS max_offer
+        FROM offers
+        WHERE car_id = $1
+      `;
+      const result = await pool.query(statsQuery, [carId]);
+      return result.rows[0] || { active_buyers: 0, max_offer: 0 };
+    } catch (error) {
+      console.error('Error fetching offer stats:', error);
+      throw error;
+    }
+  }
+
+  // Create an offer and optionally create chat + message
+  async createOfferAndMessage(carId, buyerId, offerPrice) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Insert offer
+      const offerQuery = `
+        INSERT INTO offers (car_id, buyer_id, price)
+        VALUES ($1, $2, $3)
+        RETURNING id, car_id, buyer_id, price, created_at
+      `;
+      const offerRes = await client.query(offerQuery, [carId, buyerId, offerPrice]);
+
+      // Ensure chat exists and send message
+      const carRes = await client.query('SELECT seller_id FROM cars WHERE id = $1', [carId]);
+      if (carRes.rows.length === 0) throw new Error('Car not found');
+      const sellerId = carRes.rows[0].seller_id;
+
+      const existingChatRes = await client.query(
+        'SELECT chat_id FROM chats WHERE car_id = $1 AND buyer_id = $2 AND seller_id = $3',
+        [carId, buyerId, sellerId]
+      );
+
+      let chatId;
+      if (existingChatRes.rows.length > 0) {
+        chatId = existingChatRes.rows[0].chat_id;
+      } else {
+        chatId = require('uuid').v4();
+        await client.query(
+          'INSERT INTO chats (chat_id, car_id, buyer_id, seller_id) VALUES ($1, $2, $3, $4)',
+          [chatId, carId, buyerId, sellerId]
+        );
+      }
+
+      // Send offer message
+      const messageId = require('uuid').v4();
+      const text = `I would like to make an offer for ₹${Number(offerPrice).toLocaleString('en-IN')}`;
+      await client.query(
+        'INSERT INTO messages (message_id, chat_id, sender_id, text) VALUES ($1, $2, $3, $4)',
+        [messageId, chatId, buyerId, text]
+      );
+
+      await client.query('COMMIT');
+      return { offer: offerRes.rows[0], chatId };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error creating offer and message:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   // Get chat by ID with messages
   async getChatById(chatId, userId) {
     try {

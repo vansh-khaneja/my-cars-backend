@@ -58,6 +58,20 @@ class CarController {
       // Override seller information with authenticated user data
       carData.sellerId = req.user.sub; // Simple auth user ID
       carData.sellerName = req.user.name || req.user.email || 'Unknown';
+
+      // Enforce per-user ad limit
+      try {
+        const pool = require('../config/database');
+        const userResult = await pool.query('SELECT allowed_ads FROM users WHERE user_id = $1', [carData.sellerId]);
+        const allowedAds = userResult.rows[0]?.allowed_ads ?? 1;
+        const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM cars WHERE seller_id = $1', [carData.sellerId]);
+        const postedAds = countResult.rows[0]?.count ?? 0;
+        if (postedAds >= allowedAds) {
+          return res.status(403).json({ error: 'Listing limit reached', allowedAds, postedAds });
+        }
+      } catch (e) {
+        // If check fails, continue without blocking
+      }
       
       // Sanitize and validate numeric fields
       if (carData.year) {

@@ -115,6 +115,50 @@ class ChatController {
       });
     }
   }
+
+  // Get offer stats for a car
+  async getOfferStats(req, res) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      const { carId } = req.params;
+      const stats = await chatService.getOfferStatsForCar(parseInt(carId));
+      res.json({
+        activeBuyers: stats.active_buyers,
+        maxOffer: stats.max_offer
+      });
+    } catch (error) {
+      console.error('Controller error - getOfferStats:', error);
+      res.status(500).json({
+        error: 'Failed to fetch offer stats',
+        message: error.message
+      });
+    }
+  }
+
+  // Create offer and send message
+  async makeOffer(req, res) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      const { carId } = req.params;
+      const { price } = req.body;
+      if (!price || isNaN(parseInt(price))) {
+        return res.status(400).json({ error: 'Valid price is required' });
+      }
+
+      const result = await chatService.createOfferAndMessage(parseInt(carId), req.user.sub, parseInt(price));
+      res.status(201).json(result);
+    } catch (error) {
+      console.error('Controller error - makeOffer:', error);
+      res.status(500).json({
+        error: 'Failed to make offer',
+        message: error.message
+      });
+    }
+  }
 }
 
 module.exports = new ChatController();

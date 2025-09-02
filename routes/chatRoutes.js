@@ -22,4 +22,8 @@ router.post('/:chatId/messages', chatController.sendMessage);
 // Get messages for a chat
 router.get('/:chatId/messages', chatController.getChatMessages);
 
+// Offer endpoints
+router.get('/offers/stats/:carId', chatController.getOfferStats);
+router.post('/offers/:carId', chatController.makeOffer);
+
 module.exports = router;

@@ -2,9 +2,29 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
-const { JWT_SECRET } = require('../middleware/simpleAuth');
+const { JWT_SECRET, simpleAuthMiddleware } = require('../middleware/simpleAuth');
 
 const router = express.Router();
+// Get user ad limits and posted count (requires auth)
+router.get('/me/ad-limits', simpleAuthMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const userResult = await pool.query('SELECT allowed_ads FROM users WHERE user_id = $1', [userId]);
+    const allowedAds = userResult.rows[0]?.allowed_ads ?? 1;
+
+    const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM cars WHERE seller_id = $1', [userId]);
+    const postedAds = countResult.rows[0]?.count ?? 0;
+
+    res.json({
+      allowedAds,
+      postedAds,
+      remaining: Math.max(allowedAds - postedAds, 0)
+    });
+  } catch (error) {
+    console.error('Ad limits fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch ad limits' });
+  }
+});
 
 // Sign up
 router.post('/signup', async (req, res) => {
@@ -30,8 +50,8 @@ router.post('/signup', async (req, res) => {
 
     // Insert user
     const result = await pool.query(
-      'INSERT INTO users (user_id, name, email, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, user_id, name, email, created_at',
-      [userId, name, email, passwordHash]
+      'INSERT INTO users (user_id, name, email, password_hash, allowed_ads) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, name, email, created_at, allowed_ads',
+      [userId, name, email, passwordHash, 1]
     );
 
     const user = result.rows[0];
@@ -54,7 +74,8 @@ router.post('/signup', async (req, res) => {
         userId: user.user_id,
         name: user.name,
         email: user.email,
-        createdAt: user.created_at
+        createdAt: user.created_at,
+        allowedAds: user.allowed_ads || 1
       },
       token
     });
@@ -106,7 +127,8 @@ router.post('/signin', async (req, res) => {
         userId: user.user_id,
         name: user.name,
         email: user.email,
-        createdAt: user.created_at
+        createdAt: user.created_at,
+        allowedAds: user.allowed_ads || 1
       },
       token
     });
