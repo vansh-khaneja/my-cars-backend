@@ -17,6 +17,11 @@ const chatRoutes = require('./routes/chatRoutes');
 const authRoutes = require('./routes/authRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const boostRoutes = require('./routes/boostRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const leadsRoutes = require('./routes/leadsRoutes');
+const transactionsRoutes = require('./routes/transactionsRoutes');
+const contentRoutes = require('./routes/contentRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 
 // Basic route
 app.get('/', (req, res) => {
@@ -112,7 +117,7 @@ app.get('/debug/cars-format', async (req, res) => {
       SELECT 
         c.*,
         CASE 
-          WHEN bo.status = 'active' AND bo.boost_end_date > CURRENT_TIMESTAMP 
+          WHEN bo.status = 'completed' AND bo.boost_end_date > CURRENT_TIMESTAMP 
           THEN true 
           ELSE false 
         END as is_boosted,
@@ -149,6 +154,11 @@ app.use('/api/cars', carRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/boost', boostRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/activity', activityRoutes);
+app.use('/api/leads', leadsRoutes);
+app.use('/api/transactions', transactionsRoutes);
+app.use('/api/content', contentRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

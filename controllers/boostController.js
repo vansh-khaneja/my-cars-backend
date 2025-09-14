@@ -1,4 +1,5 @@
 const boostService = require('../services/boostService');
+const ActivityService = require('../services/activityService');
 
 class BoostController {
   // Create a new boost order
@@ -15,6 +16,17 @@ class BoostController {
       }
 
       const boostOrder = await boostService.createBoostOrder(req.user.sub, carId);
+      
+      // Update analytics after boost order creation
+      try {
+        const pool = require('../config/database');
+        await pool.query('SELECT update_recent_analytics()');
+        console.log('📊 Analytics updated after boost order creation');
+      } catch (analyticsError) {
+        console.error('Analytics update error:', analyticsError);
+        // Don't fail the request if analytics update fails
+      }
+      
       res.status(201).json({
         message: 'Boost order created successfully',
         boostOrder
@@ -42,6 +54,47 @@ class BoostController {
       }
 
       const processedOrder = await boostService.processPayment(orderId);
+      
+      // Update analytics after payment processing
+      try {
+        const pool = require('../config/database');
+        await pool.query('SELECT update_recent_analytics()');
+        console.log('📊 Analytics updated after boost payment processing');
+      } catch (analyticsError) {
+        console.error('Analytics update error:', analyticsError);
+        // Don't fail the request if analytics update fails
+      }
+
+      // Log activity
+      try {
+        // Get car details for the activity
+        const pool = require('../config/database');
+        const carResult = await pool.query(`
+          SELECT c.year, c.make, c.model, c.seller_name 
+          FROM cars c 
+          WHERE c.id = $1
+        `, [processedOrder.car_id]);
+        
+        if (carResult.rows.length > 0) {
+          const car = carResult.rows[0];
+          await ActivityService.logActivity({
+            type: 'listing_boosted',
+            action: 'Listing boosted',
+            description: `${car.year} ${car.make} ${car.model} was featured`,
+            user: car.seller_name,
+            referenceId: `boost_${processedOrder.order_id}`,
+            metadata: {
+              carId: processedOrder.car_id,
+              orderId: processedOrder.order_id,
+              amount: processedOrder.amount
+            }
+          });
+        }
+      } catch (activityError) {
+        console.error('Activity logging error:', activityError);
+        // Don't fail the request if activity logging fails
+      }
+      
       res.json({
         message: 'Payment processed successfully',
         boostOrder: processedOrder

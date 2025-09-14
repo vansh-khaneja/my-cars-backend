@@ -4,6 +4,7 @@ class User {
     this.userId = data.user_id || data.userId;
     this.name = data.name;
     this.email = data.email;
+    this.listingQuota = data.listing_quota || data.listingQuota || 1;
     this.createdAt = data.created_at || data.createdAt || new Date();
   }
 
@@ -37,7 +38,8 @@ class User {
     return {
       user_id: this.userId,
       name: this.name,
-      email: this.email
+      email: this.email,
+      listing_quota: this.listingQuota
     };
   }
 
@@ -47,6 +49,7 @@ class User {
       userId: this.userId,
       name: this.name,
       email: this.email,
+      listingQuota: this.listingQuota,
       createdAt: this.createdAt
     };
   }

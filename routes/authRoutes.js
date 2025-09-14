@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 const { JWT_SECRET, simpleAuthMiddleware } = require('../middleware/simpleAuth');
+const ActivityService = require('../services/activityService');
 
 const router = express.Router();
 // Get user ad limits and posted count (requires auth)
@@ -55,6 +56,33 @@ router.post('/signup', async (req, res) => {
     );
 
     const user = result.rows[0];
+
+    // Update analytics after user registration
+    try {
+      await pool.query('SELECT update_recent_analytics()');
+      console.log('📊 Analytics updated after user registration');
+    } catch (analyticsError) {
+      console.error('Analytics update error:', analyticsError);
+      // Don't fail the request if analytics update fails
+    }
+
+    // Log activity
+    try {
+      await ActivityService.logActivity({
+        type: 'user_registered',
+        action: 'New user registered',
+        description: `User ${name} joined the platform`,
+        user: name,
+        referenceId: userId,
+        metadata: {
+          userId: userId,
+          email: email
+        }
+      });
+    } catch (activityError) {
+      console.error('Activity logging error:', activityError);
+      // Don't fail the request if activity logging fails
+    }
 
     // Generate JWT token
     const token = jwt.sign(

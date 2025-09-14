@@ -15,6 +15,7 @@ class Car {
     this.transmission = data.transmission || 'Unknown';
     this.color = data.color || 'Unknown';
     this.createdAt = data.created_at || data.createdAt || new Date();
+    this.expirationDate = data.expiration_date || data.expirationDate || null;
     
     // Ensure proper mapping of boost fields
     this.isBoosted = Boolean(data.is_boosted) || Boolean(data.isBoosted) || false;
@@ -136,6 +137,7 @@ class Car {
       transmission: this.transmission,
       color: this.color,
       createdAt: this.createdAt,
+      expirationDate: this.expirationDate,
       isBoosted: this.isBoosted,
       boostStartDate: this.boostStartDate,
       boostEndDate: this.boostEndDate

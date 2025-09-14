@@ -1,6 +1,7 @@
 const carService = require('../services/carService');
 const Car = require('../models/Car');
 const { simpleAuthMiddleware } = require('../middleware/simpleAuth');
+const ActivityService = require('../services/activityService');
 
 class CarController {
   // Get all cars with optional filtering and pagination
@@ -118,6 +119,35 @@ class CarController {
 
       // Create car with images
       const car = await carService.createCar(carData, imageFiles);
+      
+      // Update analytics after car creation
+      try {
+        const pool = require('../config/database');
+        await pool.query('SELECT update_recent_analytics()');
+        console.log('📊 Analytics updated after car creation');
+      } catch (analyticsError) {
+        console.error('Analytics update error:', analyticsError);
+        // Don't fail the request if analytics update fails
+      }
+
+      // Log activity
+      try {
+        await ActivityService.logActivity({
+          type: 'listing_created',
+          action: 'New listing created',
+          description: `${carData.year} ${carData.make} ${carData.model}`,
+          user: carData.sellerName,
+          referenceId: `car_${car.id}`,
+          metadata: {
+            carId: car.id,
+            price: carData.price,
+            year: carData.year
+          }
+        });
+      } catch (activityError) {
+        console.error('Activity logging error:', activityError);
+        // Don't fail the request if activity logging fails
+      }
       
       res.status(201).json({
         message: 'Car listing created successfully',
@@ -239,6 +269,16 @@ class CarController {
       }
       
       await carService.deleteCar(parseInt(id));
+      
+      // Update analytics after car deletion
+      try {
+        const pool = require('../config/database');
+        await pool.query('SELECT update_recent_analytics()');
+        console.log('📊 Analytics updated after car deletion');
+      } catch (analyticsError) {
+        console.error('Analytics update error:', analyticsError);
+        // Don't fail the request if analytics update fails
+      }
       
       res.json({ message: 'Car listing deleted successfully' });
     } catch (error) {

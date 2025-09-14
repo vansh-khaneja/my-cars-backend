@@ -10,7 +10,7 @@ class CarService {
         SELECT 
           c.*,
           CASE 
-            WHEN bo.status = 'active' AND bo.boost_end_date > CURRENT_TIMESTAMP 
+            WHEN bo.status = 'completed' AND bo.boost_end_date > CURRENT_TIMESTAMP 
             THEN true 
             ELSE false 
           END as is_boosted,
@@ -18,7 +18,7 @@ class CarService {
           bo.boost_end_date
         FROM cars c
         LEFT JOIN boost_orders bo ON c.id = bo.car_id
-        WHERE 1=1
+        WHERE c.expiration_date > CURRENT_TIMESTAMP
       `;
       const params = [];
       let paramCount = 0;
@@ -106,7 +106,7 @@ class CarService {
         SELECT 
           c.*,
           CASE 
-            WHEN bo.status = 'active' AND bo.boost_end_date > CURRENT_TIMESTAMP 
+            WHEN bo.status = 'completed' AND bo.boost_end_date > CURRENT_TIMESTAMP 
             THEN true 
             ELSE false 
           END as is_boosted,
@@ -171,10 +171,10 @@ class CarService {
         images: processedImages
       });
 
-      // Insert into database
+      // Insert into database with 60-day expiration
       const result = await pool.query(
-        `INSERT INTO cars (make, model, year, price, fuel_type, description, images, seller_id, seller_name, location, mileage, transmission, color) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+        `INSERT INTO cars (make, model, year, price, fuel_type, description, images, seller_id, seller_name, location, mileage, transmission, color, expiration_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW() + INTERVAL '60 days') 
          RETURNING *`,
         [
           car.make, car.model, car.year, car.price, car.fuelType, car.description,
@@ -291,7 +291,7 @@ class CarService {
         SELECT 
           c.*,
           CASE 
-            WHEN bo.status = 'active' AND bo.boost_end_date > CURRENT_TIMESTAMP 
+            WHEN bo.status = 'completed' AND bo.boost_end_date > CURRENT_TIMESTAMP 
             THEN true 
             ELSE false 
           END as is_boosted,
@@ -299,7 +299,7 @@ class CarService {
           bo.boost_end_date
         FROM cars c
         LEFT JOIN boost_orders bo ON c.id = bo.car_id
-        WHERE 1=1
+        WHERE c.expiration_date > CURRENT_TIMESTAMP
       `;
       const params = [];
       let paramCount = 0;
@@ -391,7 +391,7 @@ class CarService {
         SELECT 
           c.*,
           CASE 
-            WHEN bo.status = 'active' AND bo.boost_end_date > CURRENT_TIMESTAMP 
+            WHEN bo.status = 'completed' AND bo.boost_end_date > CURRENT_TIMESTAMP 
             THEN true 
             ELSE false 
           END as is_boosted,

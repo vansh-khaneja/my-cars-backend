@@ -196,7 +196,7 @@ class BoostService {
         FROM boost_orders bo
         JOIN cars c ON bo.car_id = c.id
         JOIN users u ON bo.user_id = u.user_id
-        WHERE bo.status = 'active' 
+        WHERE bo.status = 'completed' 
         AND bo.boost_end_date > CURRENT_TIMESTAMP
         ORDER BY bo.boost_start_date DESC
       `;
